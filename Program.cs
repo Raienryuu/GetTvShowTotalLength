@@ -2,8 +2,16 @@
 using System.Net.Http.Json;
 
 HttpClient httpClient = new();
+string showName = "";
 
-var showName = Environment.GetCommandLineArgs()[1];
+try {
+showName = Environment.GetCommandLineArgs()[1];
+}
+catch (IndexOutOfRangeException){
+  Console.WriteLine("Please provide show's name.");
+  return;
+}
+
 
 
 var showId = await GetMostRecentShowId(showName);

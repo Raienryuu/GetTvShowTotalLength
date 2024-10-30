@@ -1,39 +1,73 @@
-﻿using System.Net.Http.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using GetTvShowTotalLength;
+using System.Net.Http.Json;
 
-Console.WriteLine("Hello, World!");
-
+HttpClient httpClient = new();
 
 var showName = Environment.GetCommandLineArgs()[1];
 
+
+var showId = await GetMostRecentShowId(showName);
+if (showId == -1)
+  Environment.Exit(10);
+
+var runtimeInMinutes = await GetShowTotalRuntimeMinutes(showId);
+
+Console.WriteLine("Runtime is : " + runtimeInMinutes);
+
+
+
+
+
+
+
+
+
+
+
+
 async Task<int> GetMostRecentShowId(string name)
 {
-  HttpClient httpClient = new();
   var response = await httpClient.GetAsync($"https://api.tvmaze.com/search/shows?q={name}");
+  if (!response.IsSuccessStatusCode)
+	return -1;
+
   var shows = await response.Content.ReadFromJsonAsync<List<Show>>();
   if (shows is null || shows.Count == 0)
   {
 	return -1;
   }
-  DateOnly newestShowPremiere = new(0, 0, 0);
+
+  DateOnly newestShowPremiere = new(1000, 1, 1);
   int newestShowId = -1;
   foreach (var show in shows)
   {
-	if (show.Premiered > newestShowPremiere)
+	if (show.ShowDetails.Premiered.CompareTo(newestShowPremiere) > 0)
 	{
-	  newestShowId = show.Id;
-	  newestShowPremiere = show.Premiered; 
+	  newestShowId = show.ShowDetails.Id;
+	  newestShowPremiere = show.ShowDetails.Premiered;
 	}
   }
   return newestShowId;
 }
 
-
-public class Show
+async Task<int> GetShowTotalRuntimeMinutes(int showId)
 {
-  [JsonPropertyName("id")]
-  public int Id { get; set; }
-  [JsonPropertyName("premiered")]
-  public DateOnly Premiered { get; set; }
+
+  var response = await httpClient.GetAsync($"https://api.tvmaze.com/shows/{showId}/episodes");
+  if (!response.IsSuccessStatusCode)
+	return -1;
+
+  var episodes = await response.Content.ReadFromJsonAsync<List<ShowEpisode>>();
+  if (episodes is null || episodes.Count == 0)
+  {
+	return -1;
+  }
+
+  int totalRuntimeMinutes = 0;
+  foreach (var episode in episodes)
+  {
+	if (episode.Runtime is not null)
+	  totalRuntimeMinutes += (int)episode.Runtime;
+  }
+  return totalRuntimeMinutes;
 }
